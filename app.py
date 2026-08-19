@@ -240,9 +240,7 @@ header[data-testid="stHeader"] {
     text-transform: uppercase;
 }
 
-/* Gauge - CSS only.
-   We intentionally do NOT use SVG here because Streamlit's HTML sanitizer
-   can remove/alter inline SVG in some versions. */
+/* Gauge */
 .gauge-wrap {
     padding: 0.75rem 0.85rem 0.35rem 0.85rem;
     text-align: center;
@@ -352,8 +350,13 @@ header[data-testid="stHeader"] {
     text-align: center;
 }
 
-.gauge-side.left { left: calc(50% - 145px); }
-.gauge-side.right { right: calc(50% - 145px); }
+.gauge-side.left {
+    left: calc(50% - 145px);
+}
+
+.gauge-side.right {
+    right: calc(50% - 145px);
+}
 
 .gauge-side-percent {
     font-family: 'Space Grotesk', sans-serif;
@@ -361,8 +364,13 @@ header[data-testid="stHeader"] {
     font-weight: 700;
 }
 
-.gauge-side-percent.green { color: #45D88C; }
-.gauge-side-percent.red { color: #FF4D5A; }
+.gauge-side-percent.green {
+    color: #45D88C;
+}
+
+.gauge-side-percent.red {
+    color: #FF4D5A;
+}
 
 .gauge-side-label {
     color: #8293A9;
@@ -371,12 +379,30 @@ header[data-testid="stHeader"] {
 }
 
 @media (max-width: 700px) {
-    .gauge-visual { height: 250px; }
-    .gauge-ring { width: 255px; height: 255px; }
-    .gauge-side { top: 205px; }
-    .gauge-side.left { left: calc(50% - 130px); }
-    .gauge-side.right { right: calc(50% - 130px); }
-    .gauge-center { top: 78px; }
+    .gauge-visual {
+        height: 250px;
+    }
+
+    .gauge-ring {
+        width: 255px;
+        height: 255px;
+    }
+
+    .gauge-side {
+        top: 205px;
+    }
+
+    .gauge-side.left {
+        left: calc(50% - 130px);
+    }
+
+    .gauge-side.right {
+        right: calc(50% - 130px);
+    }
+
+    .gauge-center {
+        top: 78px;
+    }
 }
 
 .gauge-result {
@@ -571,24 +597,41 @@ header[data-testid="stHeader"] {
     margin-top: 0.1rem;
 }
 
-/* Sidebar button */
-.stButton > button {
-    width: 100%;
-    min-height: 38px;
-    border: 0;
-    border-radius: 8px;
+/* Main page Predict button */
+div[data-testid="stButton"] {
+    display: flex;
+    justify-content: center;
+}
+
+div[data-testid="stButton"] > button {
+    width: 260px;
+    min-height: 48px;
+    border: 1px solid rgba(66, 216, 255, 0.35);
+    border-radius: 9px;
     background: linear-gradient(135deg, #38D7FF, #716BFF);
     color: #061019;
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700;
-    font-size: 0.75rem;
-    box-shadow: 0 8px 24px rgba(62, 142, 255, 0.15);
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    box-shadow:
+        0 8px 24px rgba(62, 142, 255, 0.18),
+        0 0 18px rgba(66, 216, 255, 0.06);
+    transition: all 0.2s ease;
 }
 
-.stButton > button:hover {
+div[data-testid="stButton"] > button:hover {
+    transform: translateY(-1px);
     filter: brightness(1.08);
-    border: 0;
+    border: 1px solid rgba(66, 216, 255, 0.65);
     color: #061019;
+    box-shadow:
+        0 10px 28px rgba(62, 142, 255, 0.25),
+        0 0 22px rgba(66, 216, 255, 0.10);
+}
+
+div[data-testid="stButton"] > button:active {
+    transform: translateY(0);
 }
 
 /* Inputs */
@@ -634,6 +677,10 @@ div[data-baseweb="select"] {
     .profile-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    div[data-testid="stButton"] > button {
+        width: 100%;
+    }
 }
 </style>
 """
@@ -648,8 +695,6 @@ st.markdown(CSS, unsafe_allow_html=True)
 def html(markup: str):
     markup = markup.strip()
 
-    # st.html avoids Streamlit Markdown interpreting indented
-    # SVG/HTML as a code block.
     if hasattr(st, "html"):
         st.html(markup)
     else:
@@ -687,37 +732,35 @@ except Exception as exc:
 # =========================================================
 
 def churn_panel_html(probability: float, high_risk: bool) -> str:
-    """Render the complete churn card inside a real HTML iframe.
 
-    Using st.components.v1.html avoids Streamlit HTML sanitization/layout
-    differences that can hide CSS/SVG content inside st.html().
-    """
     p = float(np.clip(probability, 0.0, 1.0))
     safe = 1.0 - p
 
-    # Geometry for a true upper semicircle.
     cx, cy, r = 210.0, 205.0, 145.0
-    # IMPORTANT: the white separator is the boundary between the
-    # green safe portion and red churn portion.
-    #
-    # The gauge runs from LEFT (0% churn) to RIGHT (100% churn).
-    # Therefore the boundary is positioned after the SAFE fraction
-    # (1 - p) of the semicircle, which gives an angle of p * 180°.
-    # Example: p=0.403 -> the marker is slightly RIGHT of the top.
+
     angle_deg = p * 180.0
     angle = np.radians(angle_deg)
+
     marker_x = cx + r * np.cos(angle)
     marker_y = cy - r * np.sin(angle)
 
-    # 40.3% in the reference is still shown as At Risk,
-    # even though classification stays below 50%.
     badge_at_risk = p >= 0.30
     badge_text = "At Risk" if badge_at_risk else "Safe"
     badge_color = "#FF4D5A" if badge_at_risk else "#45D88C"
 
     result_color = "#FF4D5A" if high_risk else "#45D88C"
-    result_bg = "rgba(17,78,70,.22)" if not high_risk else "rgba(103,24,40,.22)"
-    result_border = "rgba(42,196,140,.23)" if not high_risk else "rgba(255,77,90,.25)"
+
+    result_bg = (
+        "rgba(17,78,70,.22)"
+        if not high_risk
+        else "rgba(103,24,40,.22)"
+    )
+
+    result_border = (
+        "rgba(42,196,140,.23)"
+        if not high_risk
+        else "rgba(255,77,90,.25)"
+    )
 
     return f"""
 <!doctype html>
@@ -726,6 +769,7 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
 <meta charset="utf-8">
 <style>
     * {{ box-sizing: border-box; }}
+
     html, body {{
         margin: 0;
         width: 100%;
@@ -734,15 +778,22 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
         background: transparent;
         font-family: Inter, Arial, sans-serif;
     }}
+
     .card {{
         width: 100%;
         min-height: 100%;
         padding: 10px 14px 12px 14px;
         border: 1px solid #1E2C40;
         border-radius: 10px;
-        background: linear-gradient(145deg, rgba(13,24,39,.98), rgba(8,16,28,.98));
+        background:
+            linear-gradient(
+                145deg,
+                rgba(13,24,39,.98),
+                rgba(8,16,28,.98)
+            );
         color: #EAF0F8;
     }}
+
     .title {{
         color: #42D8FF;
         font-family: 'Space Grotesk', Inter, Arial, sans-serif;
@@ -752,12 +803,14 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
         text-transform: uppercase;
         margin: 0 0 0 2px;
     }}
+
     .gauge-box {{
         position: relative;
         width: 100%;
         height: 292px;
         margin-top: -4px;
     }}
+
     svg {{
         position: absolute;
         inset: 0;
@@ -765,6 +818,7 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
         height: 100%;
         display: block;
     }}
+
     .result {{
         margin-top: -1px;
         padding: 12px 14px;
@@ -775,11 +829,13 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
         gap: 11px;
         align-items: center;
     }}
+
     .shield {{
         width: 24px;
         height: 24px;
         flex: 0 0 24px;
     }}
+
     .result-title {{
         color: {result_color};
         font-family: 'Space Grotesk', Inter, Arial, sans-serif;
@@ -787,6 +843,7 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
         font-weight: 700;
         line-height: 1.2;
     }}
+
     .result-text {{
         color: #9AACBF;
         font-size: 11px;
@@ -794,112 +851,278 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
     }}
 </style>
 </head>
+
 <body>
+
 <div class="card">
+
     <div class="title">CHURN PROBABILITY</div>
 
     <div class="gauge-box">
-        <svg viewBox="0 0 420 292" preserveAspectRatio="xMidYMid meet">
+
+        <svg viewBox="0 0 420 292"
+             preserveAspectRatio="xMidYMid meet">
+
             <defs>
-                <linearGradient id="greenGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#3ED782"/>
-                    <stop offset="100%" stop-color="#54E19A"/>
+
+                <linearGradient id="greenGrad"
+                                x1="0"
+                                y1="0"
+                                x2="1"
+                                y2="0">
+
+                    <stop offset="0%"
+                          stop-color="#3ED782"/>
+
+                    <stop offset="100%"
+                          stop-color="#54E19A"/>
+
                 </linearGradient>
-                <linearGradient id="redGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#FF4455"/>
-                    <stop offset="100%" stop-color="#FF625D"/>
+
+                <linearGradient id="redGrad"
+                                x1="0"
+                                y1="0"
+                                x2="1"
+                                y2="0">
+
+                    <stop offset="0%"
+                          stop-color="#FF4455"/>
+
+                    <stop offset="100%"
+                          stop-color="#FF625D"/>
+
                 </linearGradient>
+
                 <filter id="glow">
-                    <feGaussianBlur stdDeviation="4" result="b"/>
+
+                    <feGaussianBlur
+                        stdDeviation="4"
+                        result="b"/>
+
                     <feMerge>
+
                         <feMergeNode in="b"/>
                         <feMergeNode in="SourceGraphic"/>
+
                     </feMerge>
+
                 </filter>
+
             </defs>
 
+
             <!-- Track -->
-            <path d="M65 205 A145 145 0 0 1 355 205"
-                  fill="none" stroke="#162334" stroke-width="15"
-                  stroke-linecap="round"/>
+
+            <path
+                d="M65 205 A145 145 0 0 1 355 205"
+                fill="none"
+                stroke="#162334"
+                stroke-width="15"
+                stroke-linecap="round"
+            />
+
 
             <!-- Full green base -->
-            <path d="M65 205 A145 145 0 0 1 355 205"
-                  fill="none" stroke="url(#greenGrad)" stroke-width="15"
-                  stroke-linecap="round"/>
 
-            <!-- Red risk section, proportional to churn probability -->
-            <path d="M65 205 A145 145 0 0 1 355 205"
-                  fill="none" stroke="url(#redGrad)" stroke-width="15"
-                  stroke-linecap="round"
-                  pathLength="100"
-                  stroke-dasharray="{p*100:.4f} 100"
-                  stroke-dashoffset="{-safe*100:.4f}"/>
+            <path
+                d="M65 205 A145 145 0 0 1 355 205"
+                fill="none"
+                stroke="url(#greenGrad)"
+                stroke-width="15"
+                stroke-linecap="round"
+            />
 
-            <!-- Center marker at probability boundary -->
-            <circle cx="{marker_x:.2f}" cy="{marker_y:.2f}" r="10"
-                    fill="#F8FAFD" stroke="#DCE5EF" stroke-width="2"
-                    filter="url(#glow)"/>
+
+            <!-- Red risk section -->
+
+            <path
+                d="M65 205 A145 145 0 0 1 355 205"
+                fill="none"
+                stroke="url(#redGrad)"
+                stroke-width="15"
+                stroke-linecap="round"
+                pathLength="100"
+                stroke-dasharray="{p*100:.4f} 100"
+                stroke-dashoffset="{-safe*100:.4f}"
+            />
+
+
+            <!-- Center marker -->
+
+            <circle
+                cx="{marker_x:.2f}"
+                cy="{marker_y:.2f}"
+                r="10"
+                fill="#F8FAFD"
+                stroke="#DCE5EF"
+                stroke-width="2"
+                filter="url(#glow)"
+            />
+
 
             <!-- Main probability -->
-            <text x="210" y="155" text-anchor="middle"
-                  fill="#FF334F"
-                  font-family="Space Grotesk, Inter, sans-serif"
-                  font-size="43" font-weight="700">{p*100:.1f}%</text>
 
-            <text x="210" y="181" text-anchor="middle"
-                  fill="#EAF0F8"
-                  font-family="Inter, Arial, sans-serif"
-                  font-size="13" font-weight="500">Churn Probability</text>
+            <text
+                x="210"
+                y="155"
+                text-anchor="middle"
+                fill="#FF334F"
+                font-family="Space Grotesk, Inter, sans-serif"
+                font-size="43"
+                font-weight="700"
+            >
+                {p*100:.1f}%
+            </text>
+
+
+            <text
+                x="210"
+                y="181"
+                text-anchor="middle"
+                fill="#EAF0F8"
+                font-family="Inter, Arial, sans-serif"
+                font-size="13"
+                font-weight="500"
+            >
+                Churn Probability
+            </text>
+
 
             <!-- Badge -->
-            <rect x="169" y="194" width="82" height="29" rx="15"
-                  fill="{badge_color}" fill-opacity="0.16"/>
-            <text x="210" y="213" text-anchor="middle"
-                  fill="{badge_color}"
-                  font-family="Space Grotesk, Inter, sans-serif"
-                  font-size="12" font-weight="700">{badge_text}</text>
+
+            <rect
+                x="169"
+                y="194"
+                width="82"
+                height="29"
+                rx="15"
+                fill="{badge_color}"
+                fill-opacity="0.16"
+            />
+
+            <text
+                x="210"
+                y="213"
+                text-anchor="middle"
+                fill="{badge_color}"
+                font-family="Space Grotesk, Inter, sans-serif"
+                font-size="12"
+                font-weight="700"
+            >
+                {badge_text}
+            </text>
+
 
             <!-- Bottom labels -->
-            <text x="75" y="253" text-anchor="middle"
-                  fill="#45D88C"
-                  font-family="Space Grotesk, Inter, sans-serif"
-                  font-size="14" font-weight="700">{safe*100:.1f}%</text>
-            <text x="75" y="272" text-anchor="middle"
-                  fill="#8293A9"
-                  font-family="Inter, Arial, sans-serif"
-                  font-size="10">Unlikely to churn</text>
 
-            <text x="345" y="253" text-anchor="middle"
-                  fill="#FF4D5A"
-                  font-family="Space Grotesk, Inter, sans-serif"
-                  font-size="14" font-weight="700">{p*100:.1f}%</text>
-            <text x="345" y="272" text-anchor="middle"
-                  fill="#8293A9"
-                  font-family="Inter, Arial, sans-serif"
-                  font-size="10">Likely to churn</text>
+            <text
+                x="75"
+                y="253"
+                text-anchor="middle"
+                fill="#45D88C"
+                font-family="Space Grotesk, Inter, sans-serif"
+                font-size="14"
+                font-weight="700"
+            >
+                {safe*100:.1f}%
+            </text>
+
+            <text
+                x="75"
+                y="272"
+                text-anchor="middle"
+                fill="#8293A9"
+                font-family="Inter, Arial, sans-serif"
+                font-size="10"
+            >
+                Unlikely to churn
+            </text>
+
+
+            <text
+                x="345"
+                y="253"
+                text-anchor="middle"
+                fill="#FF4D5A"
+                font-family="Space Grotesk, Inter, sans-serif"
+                font-size="14"
+                font-weight="700"
+            >
+                {p*100:.1f}%
+            </text>
+
+            <text
+                x="345"
+                y="272"
+                text-anchor="middle"
+                fill="#8293A9"
+                font-family="Inter, Arial, sans-serif"
+                font-size="10"
+            >
+                Likely to churn
+            </text>
+
         </svg>
+
     </div>
+
+
+    <!-- Result -->
 
     <div class="result">
-        <svg class="shield" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-            <path d="M16 3.5 L27 8 V15.8 C27 22.2 22.7 26.8 16 29 C9.3 26.8 5 22.2 5 15.8 V8 Z"
-                  fill="none" stroke="{result_color}" stroke-width="1.8"
-                  stroke-linejoin="round"/>
-            <path d="M10.5 16.2 L14.2 19.7 L21.8 11.9"
-                  fill="none" stroke="{result_color}" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round"/>
+
+        <svg
+            class="shield"
+            viewBox="0 0 32 32"
+            xmlns="http://www.w3.org/2000/svg"
+        >
+
+            <path
+                d="M16 3.5 L27 8 V15.8 C27 22.2 22.7 26.8 16 29 C9.3 26.8 5 22.2 5 15.8 V8 Z"
+                fill="none"
+                stroke="{result_color}"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+            />
+
+            <path
+                d="M10.5 16.2 L14.2 19.7 L21.8 11.9"
+                fill="none"
+                stroke="{result_color}"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+
         </svg>
+
         <div>
+
             <div class="result-title">
-                {'Customer is likely to churn' if high_risk else 'Customer is unlikely to churn'}
+
+                {
+                    'Customer is likely to churn'
+                    if high_risk
+                    else
+                    'Customer is unlikely to churn'
+                }
+
             </div>
+
             <div class="result-text">
-                The model estimates a {p*100:.1f}% probability of churn.
+
+                The model estimates a
+                {p*100:.1f}%
+                probability of churn.
+
             </div>
+
         </div>
+
     </div>
+
 </div>
+
 </body>
 </html>
 """
@@ -910,27 +1133,55 @@ def churn_panel_html(probability: float, high_risk: bool) -> str:
 # =========================================================
 
 def predict_customer(input_data):
+
     prediction = pipeline.predict(input_data)[0]
 
     if hasattr(pipeline, "predict_proba"):
+
         probabilities = pipeline.predict_proba(input_data)[0]
 
         if hasattr(pipeline, "classes_"):
+
             classes = list(pipeline.classes_)
+
             if 1 in classes:
                 churn_index = classes.index(1)
+
             elif len(classes) == 2:
                 churn_index = 1
+
             else:
-                churn_index = int(np.argmax(probabilities))
+                churn_index = int(
+                    np.argmax(probabilities)
+                )
+
         else:
-            churn_index = 1 if len(probabilities) > 1 else 0
 
-        churn_probability = float(probabilities[churn_index])
+            churn_index = (
+                1
+                if len(probabilities) > 1
+                else 0
+            )
+
+        churn_probability = float(
+            probabilities[churn_index]
+        )
+
     else:
-        churn_probability = 1.0 if int(prediction) == 1 else 0.0
 
-    churn_probability = float(np.clip(churn_probability, 0, 1))
+        churn_probability = (
+            1.0
+            if int(prediction) == 1
+            else 0.0
+        )
+
+    churn_probability = float(
+        np.clip(
+            churn_probability,
+            0,
+            1
+        )
+    )
 
     return (
         int(prediction),
@@ -944,18 +1195,13 @@ def predict_customer(input_data):
 # =========================================================
 
 def get_model_contributions(input_data):
-    """
-    Attempts to calculate real Logistic Regression feature
-    contributions. If the saved pipeline does not expose the
-    expected preprocessing/model structure, returns None.
-
-    These are log-odds contributions, NOT percentages.
-    """
 
     try:
-        # Typical sklearn Pipeline:
-        # preprocessing -> LogisticRegression
-        if not hasattr(pipeline, "named_steps"):
+
+        if not hasattr(
+            pipeline,
+            "named_steps"
+        ):
             return None
 
         steps = pipeline.named_steps
@@ -964,36 +1210,62 @@ def get_model_contributions(input_data):
         preprocessor = None
 
         for name, step in steps.items():
+
             if hasattr(step, "coef_"):
                 model = step
-            if hasattr(step, "transform") and hasattr(step, "get_feature_names_out"):
+
+            if (
+                hasattr(step, "transform")
+                and
+                hasattr(
+                    step,
+                    "get_feature_names_out"
+                )
+            ):
                 preprocessor = step
 
         if model is None or preprocessor is None:
             return None
 
-        transformed = preprocessor.transform(input_data)
+        transformed = preprocessor.transform(
+            input_data
+        )
 
-        if hasattr(transformed, "toarray"):
+        if hasattr(
+            transformed,
+            "toarray"
+        ):
             transformed = transformed.toarray()
 
-        transformed = np.asarray(transformed)
+        transformed = np.asarray(
+            transformed
+        )
 
-        coefficients = np.asarray(model.coef_)
+        coefficients = np.asarray(
+            model.coef_
+        )
 
-        if coefficients.ndim != 2 or coefficients.shape[0] != 1:
+        if (
+            coefficients.ndim != 2
+            or
+            coefficients.shape[0] != 1
+        ):
             return None
 
         coefficients = coefficients[0]
 
-        names = list(preprocessor.get_feature_names_out())
+        names = list(
+            preprocessor.get_feature_names_out()
+        )
 
         if len(names) != len(coefficients):
             return None
 
         values = transformed[0]
 
-        contributions = values * coefficients
+        contributions = (
+            values * coefficients
+        )
 
         result = pd.DataFrame(
             {
@@ -1021,10 +1293,14 @@ def get_model_contributions(input_data):
 with st.sidebar:
 
     html("""
-<div class="sidebar-brand">TELCO ANALYTICS</div>
+<div class="sidebar-brand">
+    TELCO ANALYTICS
+</div>
 """)
 
-    html('<div class="section-label">Account</div>')
+    html(
+        '<div class="section-label">Account</div>'
+    )
 
     tenure = st.slider(
         "Tenure (months)",
@@ -1035,12 +1311,19 @@ with st.sidebar:
 
     contract = st.selectbox(
         "Contract",
-        ["Month-to-month", "One year", "Two year"],
+        [
+            "Month-to-month",
+            "One year",
+            "Two year",
+        ],
     )
 
     paperless_billing = st.selectbox(
         "Paperless Billing",
-        ["Yes", "No"],
+        [
+            "Yes",
+            "No",
+        ],
     )
 
     payment_method = st.selectbox(
@@ -1053,7 +1336,10 @@ with st.sidebar:
         ],
     )
 
-    html('<div class="section-label">Charges</div>')
+
+    html(
+        '<div class="section-label">Charges</div>'
+    )
 
     monthly_charges = st.number_input(
         "Monthly Charges ($)",
@@ -1071,84 +1357,137 @@ with st.sidebar:
         step=10.0,
     )
 
-    html('<div class="section-label">Demographics</div>')
+
+    html(
+        '<div class="section-label">Demographics</div>'
+    )
 
     gender = st.selectbox(
         "Gender",
-        ["Male", "Female"],
+        [
+            "Male",
+            "Female",
+        ],
     )
 
     senior_citizen = st.selectbox(
         "Senior Citizen",
-        [0, 1],
-        format_func=lambda x: "Yes" if x == 1 else "No",
+        [
+            0,
+            1,
+        ],
+        format_func=lambda x:
+            "Yes" if x == 1 else "No",
     )
 
     partner = st.selectbox(
         "Partner",
-        ["Yes", "No"],
+        [
+            "Yes",
+            "No",
+        ],
     )
 
     dependents = st.selectbox(
         "Dependents",
-        ["Yes", "No"],
+        [
+            "Yes",
+            "No",
+        ],
     )
 
-    html('<div class="section-label">Phone & Internet</div>')
+
+    html(
+        '<div class="section-label">'
+        'Phone & Internet'
+        '</div>'
+    )
 
     phone_service = st.selectbox(
         "Phone Service",
-        ["Yes", "No"],
+        [
+            "Yes",
+            "No",
+        ],
     )
 
     multiple_lines = st.selectbox(
         "Multiple Lines",
-        ["Yes", "No", "No phone service"],
+        [
+            "Yes",
+            "No",
+            "No phone service",
+        ],
     )
 
     internet_service = st.selectbox(
         "Internet Service",
-        ["DSL", "Fiber optic", "No"],
+        [
+            "DSL",
+            "Fiber optic",
+            "No",
+        ],
     )
 
-    html('<div class="section-label">Additional Services</div>')
+
+    html(
+        '<div class="section-label">'
+        'Additional Services'
+        '</div>'
+    )
 
     online_security = st.selectbox(
         "Online Security",
-        ["Yes", "No", "No internet service"],
+        [
+            "Yes",
+            "No",
+            "No internet service",
+        ],
     )
 
     online_backup = st.selectbox(
         "Online Backup",
-        ["Yes", "No", "No internet service"],
+        [
+            "Yes",
+            "No",
+            "No internet service",
+        ],
     )
 
     device_protection = st.selectbox(
         "Device Protection",
-        ["Yes", "No", "No internet service"],
+        [
+            "Yes",
+            "No",
+            "No internet service",
+        ],
     )
 
     tech_support = st.selectbox(
         "Tech Support",
-        ["Yes", "No", "No internet service"],
+        [
+            "Yes",
+            "No",
+            "No internet service",
+        ],
     )
 
     streaming_tv = st.selectbox(
         "Streaming TV",
-        ["Yes", "No", "No internet service"],
+        [
+            "Yes",
+            "No",
+            "No internet service",
+        ],
     )
 
     streaming_movies = st.selectbox(
         "Streaming Movies",
-        ["Yes", "No", "No internet service"],
-    )
-
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-
-    predict_clicked = st.button(
-        "Predict Churn",
-        use_container_width=True,
-        type="primary",
+        [
+            "Yes",
+            "No",
+            "No internet service",
+        ],
     )
 
 
@@ -1189,12 +1528,20 @@ input_data = pd.DataFrame(
 
 html("""
 <div class="brand">
-    <div class="brand-eyebrow">TELCO ANALYTICS</div>
-    <div class="brand-title">Customer Churn Prediction</div>
-    <div class="brand-sub">
-        Enter a customer profile and use the trained machine learning
-        pipeline to estimate churn probability.
+
+    <div class="brand-eyebrow">
+        TELCO ANALYTICS
     </div>
+
+    <div class="brand-title">
+        Customer Churn Prediction
+    </div>
+
+    <div class="brand-sub">
+        Enter a customer profile and use the trained machine
+        learning pipeline to estimate churn probability.
+    </div>
+
 </div>
 """)
 
@@ -1215,50 +1562,150 @@ active_services = sum(
     ]
 )
 
-k1, k2, k3, k4 = st.columns(4, gap="small")
+
+k1, k2, k3, k4 = st.columns(
+    4,
+    gap="small"
+)
+
 
 with k1:
-    html(f"""
+
+    html(
+        f"""
 <div class="kpi-card">
-    <div class="kpi-label">TENURE</div>
-    <div class="kpi-value">{tenure} months</div>
-    <div class="kpi-sub">Customer tenure</div>
-    <div class="kpi-icon">▣</div>
+
+    <div class="kpi-label">
+        TENURE
+    </div>
+
+    <div class="kpi-value">
+        {tenure} months
+    </div>
+
+    <div class="kpi-sub">
+        Customer tenure
+    </div>
+
+    <div class="kpi-icon">
+        ▣
+    </div>
+
 </div>
-""")
+"""
+    )
+
 
 with k2:
-    html(f"""
+
+    html(
+        f"""
 <div class="kpi-card">
-    <div class="kpi-label">MONTHLY CHARGES</div>
-    <div class="kpi-value">${monthly_charges:,.2f}</div>
-    <div class="kpi-sub">Recurring monthly</div>
-    <div class="kpi-icon">$</div>
+
+    <div class="kpi-label">
+        MONTHLY CHARGES
+    </div>
+
+    <div class="kpi-value">
+        ${monthly_charges:,.2f}
+    </div>
+
+    <div class="kpi-sub">
+        Recurring monthly
+    </div>
+
+    <div class="kpi-icon">
+        $
+    </div>
+
 </div>
-""")
+"""
+    )
+
 
 with k3:
-    html(f"""
+
+    html(
+        f"""
 <div class="kpi-card">
-    <div class="kpi-label">CONTRACT</div>
-    <div class="kpi-value">{contract}</div>
-    <div class="kpi-sub">Current contract</div>
-    <div class="kpi-icon purple">▤</div>
+
+    <div class="kpi-label">
+        CONTRACT
+    </div>
+
+    <div class="kpi-value">
+        {contract}
+    </div>
+
+    <div class="kpi-sub">
+        Current contract
+    </div>
+
+    <div class="kpi-icon purple">
+        ▤
+    </div>
+
 </div>
-""")
+"""
+    )
+
 
 with k4:
-    html(f"""
+
+    html(
+        f"""
 <div class="kpi-card">
-    <div class="kpi-label">SERVICES ACTIVE</div>
-    <div class="kpi-value">{active_services} / 6</div>
-    <div class="kpi-sub">Active services</div>
-    <div class="kpi-icon green">◆</div>
+
+    <div class="kpi-label">
+        SERVICES ACTIVE
+    </div>
+
+    <div class="kpi-value">
+        {active_services} / 6
+    </div>
+
+    <div class="kpi-sub">
+        Active services
+    </div>
+
+    <div class="kpi-icon green">
+        ◆
+    </div>
+
 </div>
-""")
+"""
+    )
 
 
-st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+# =========================================================
+# MAIN PAGE PREDICT BUTTON
+# =========================================================
+
+st.markdown(
+    "<div style='height:12px'></div>",
+    unsafe_allow_html=True
+)
+
+
+button_left, button_center, button_right = st.columns(
+    [1, 1, 1],
+    gap="small",
+)
+
+
+with button_center:
+
+    predict_clicked = st.button(
+        "Predict Churn",
+        use_container_width=True,
+        type="primary",
+    )
+
+
+st.markdown(
+    "<div style='height:8px'></div>",
+    unsafe_allow_html=True
+)
 
 
 # =========================================================
@@ -1268,129 +1715,244 @@ st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 if predict_clicked and model_ready:
 
     try:
-        prediction, churn_probability, stay_probability = predict_customer(
-            input_data
+
+        prediction, churn_probability, stay_probability = (
+            predict_customer(input_data)
         )
 
         high_risk = churn_probability >= 0.5
+
 
         left, right = st.columns(
             [1.05, 0.95],
             gap="small",
         )
 
-        # -----------------------------------------------------
+
+        # =====================================================
         # LEFT: GAUGE
-        # -----------------------------------------------------
+        # =====================================================
 
         with left:
+
             components.html(
-                churn_panel_html(churn_probability, high_risk),
+                churn_panel_html(
+                    churn_probability,
+                    high_risk
+                ),
                 height=410,
                 scrolling=False,
             )
 
-        # -----------------------------------------------------
+
+        # =====================================================
         # RIGHT: BREAKDOWN
-        # -----------------------------------------------------
+        # =====================================================
 
         with right:
 
-            contributions = get_model_contributions(input_data)
+            contributions = get_model_contributions(
+                input_data
+            )
 
-            if contributions is not None and len(contributions) > 0:
+
+            if (
+                contributions is not None
+                and
+                len(contributions) > 0
+            ):
 
                 factors = []
 
                 max_abs = max(
-                    float(contributions["contribution"].abs().max()),
+                    float(
+                        contributions[
+                            "contribution"
+                        ].abs().max()
+                    ),
                     1e-9,
                 )
 
+
                 for _, row in contributions.iterrows():
 
-                    feature = str(row["feature"])
-                    value = float(row["contribution"])
+                    feature = str(
+                        row["feature"]
+                    )
+
+                    value = float(
+                        row["contribution"]
+                    )
 
                     clean_name = (
                         feature
-                        .replace("onehot__", "")
-                        .replace("num__", "")
-                        .replace("cat__", "")
-                        .replace("remainder__", "")
-                        .replace("_", " ")
+                        .replace(
+                            "onehot__",
+                            ""
+                        )
+                        .replace(
+                            "num__",
+                            ""
+                        )
+                        .replace(
+                            "cat__",
+                            ""
+                        )
+                        .replace(
+                            "remainder__",
+                            ""
+                        )
+                        .replace(
+                            "_",
+                            " "
+                        )
                     )
 
-                    clean_name = clean_name.title()
+                    clean_name = (
+                        clean_name.title()
+                    )
 
                     positive = value > 0
-                    width = min(abs(value) / max_abs * 100, 100)
+
+                    width = min(
+                        abs(value)
+                        /
+                        max_abs
+                        *
+                        100,
+                        100,
+                    )
+
 
                     factors.append(
                         f"""
 <div class="factor">
-    <div class="factor-icon {'positive' if not positive else ''}">
+
+    <div class="factor-icon
+        {'positive' if not positive else ''}">
         {'−' if not positive else '+'}
     </div>
 
-    <div class="factor-name" title="{clean_name}">
+    <div class="factor-name"
+         title="{clean_name}">
         {clean_name}
     </div>
 
     <div class="factor-bar-wrap">
+
         <div class="factor-track">
+
             <div
-                class="factor-fill {'positive' if not positive else ''}"
+                class="factor-fill
+                {'positive' if not positive else ''}"
                 style="width:{width:.1f}%"
             ></div>
+
         </div>
 
         <div class="factor-value">
             {value:+.2f}
         </div>
+
     </div>
+
 </div>
 """
                     )
 
-                factor_html = "".join(factors)
 
-                html(f"""
+                factor_html = "".join(
+                    factors
+                )
+
+
+                html(
+                    f"""
 <div class="panel">
+
     <div class="breakdown">
-        <div class="panel-title">PREDICTION BREAKDOWN</div>
+
+        <div class="panel-title">
+            PREDICTION BREAKDOWN
+        </div>
 
         {factor_html}
 
         <div class="info-note">
-            Positive values increase churn risk; negative values decrease it.
-            Values shown are model contribution scores, not percentages.
+            Positive values increase churn risk;
+            negative values decrease it.
+            Values shown are model contribution
+            scores, not percentages.
         </div>
+
     </div>
+
 </div>
-""")
+"""
+                )
+
 
             else:
 
-                # Fallback that keeps the same professional visual
-                # when the saved model doesn't expose coefficients.
                 fallback = [
-                    ("Contract Type", contract, 75, True),
-                    ("Tenure", f"{tenure} months", 60, False),
-                    ("Monthly Charges", f"${monthly_charges:.2f}", 48, True),
-                    ("Paperless Billing", paperless_billing, 34, True),
-                    ("Payment Method", payment_method, 29, True),
-                    ("Online Security", online_security, 23, True),
+                    (
+                        "Contract Type",
+                        contract,
+                        75,
+                        True
+                    ),
+                    (
+                        "Tenure",
+                        f"{tenure} months",
+                        60,
+                        False
+                    ),
+                    (
+                        "Monthly Charges",
+                        f"${monthly_charges:.2f}",
+                        48,
+                        True
+                    ),
+                    (
+                        "Paperless Billing",
+                        paperless_billing,
+                        34,
+                        True
+                    ),
+                    (
+                        "Payment Method",
+                        payment_method,
+                        29,
+                        True
+                    ),
+                    (
+                        "Online Security",
+                        online_security,
+                        23,
+                        True
+                    ),
                 ]
+
 
                 rows = []
 
-                for name, value, width, positive in fallback:
+
+                for (
+                    name,
+                    value,
+                    width,
+                    positive
+                ) in fallback:
+
                     rows.append(
                         f"""
 <div class="factor">
-    <div class="factor-icon {'positive' if not positive else ''}">
+
+    <div class="factor-icon
+        {'positive' if not positive else ''}">
+
         {'+' if positive else '−'}
+
     </div>
 
     <div class="factor-name">
@@ -1398,112 +1960,208 @@ if predict_clicked and model_ready:
     </div>
 
     <div class="factor-bar-wrap">
+
         <div class="factor-track">
+
             <div
-                class="factor-fill {'positive' if not positive else ''}"
+                class="factor-fill
+                {'positive' if not positive else ''}"
                 style="width:{width}%"
             ></div>
+
         </div>
+
         <div class="factor-value">
             {'Risk' if positive else 'Protect'}
         </div>
+
     </div>
+
 </div>
 """
                     )
 
-                html(f"""
+
+                html(
+                    f"""
 <div class="panel">
+
     <div class="breakdown">
-        <div class="panel-title">PREDICTION BREAKDOWN</div>
+
+        <div class="panel-title">
+            PREDICTION BREAKDOWN
+        </div>
 
         {''.join(rows)}
 
         <div class="info-note">
-            The saved pipeline does not expose feature coefficients,
-            so detailed model contribution scores are unavailable.
+            The saved pipeline does not expose
+            feature coefficients, so detailed model
+            contribution scores are unavailable.
         </div>
+
     </div>
+
 </div>
-""")
+"""
+                )
 
 
-        # -----------------------------------------------------
+        # =====================================================
         # CUSTOMER PROFILE SUMMARY
-        # -----------------------------------------------------
+        # =====================================================
 
         profile_items = [
-            ("◉", "Internet Service", f"{internet_service} internet", ""),
-            ("⌕", "Multiple Lines", multiple_lines, ""),
-            ("♙", "Dependents", dependents, ""),
-            ("▣", "Streaming TV", streaming_tv, ""),
-            ("◉", "Tech Support", tech_support, "purple"),
-            ("◇", "Device Protection", device_protection, "purple"),
+            (
+                "◉",
+                "Internet Service",
+                f"{internet_service} internet",
+                "",
+            ),
+            (
+                "⌕",
+                "Multiple Lines",
+                multiple_lines,
+                "",
+            ),
+            (
+                "♙",
+                "Dependents",
+                dependents,
+                "",
+            ),
+            (
+                "▣",
+                "Streaming TV",
+                streaming_tv,
+                "",
+            ),
+            (
+                "◉",
+                "Tech Support",
+                tech_support,
+                "purple",
+            ),
+            (
+                "◇",
+                "Device Protection",
+                device_protection,
+                "purple",
+            ),
         ]
+
 
         profile_html = []
 
-        for icon, label, value, icon_class in profile_items:
+
+        for (
+            icon,
+            label,
+            value,
+            icon_class
+        ) in profile_items:
+
             profile_html.append(
                 f"""
 <div class="profile-item">
-    <div class="profile-icon {icon_class}">{icon}</div>
-    <div>
-        <div class="profile-label">{label}</div>
-        <div class="profile-value">{value}</div>
+
+    <div class="profile-icon {icon_class}">
+        {icon}
     </div>
+
+    <div>
+
+        <div class="profile-label">
+            {label}
+        </div>
+
+        <div class="profile-value">
+            {value}
+        </div>
+
+    </div>
+
 </div>
 """
             )
 
-        html(f"""
-<div class="panel" style="margin-top:8px;">
+
+        html(
+            f"""
+<div class="panel"
+     style="margin-top:8px;">
+
     <div class="profile">
-        <div class="profile-title">CUSTOMER PROFILE SUMMARY</div>
+
+        <div class="profile-title">
+            CUSTOMER PROFILE SUMMARY
+        </div>
 
         <div class="profile-grid">
+
             {''.join(profile_html)}
+
         </div>
+
     </div>
+
 </div>
-""")
+"""
+        )
+
 
     except Exception as exc:
-        st.error(f"Prediction failed: {exc}")
+
+        st.error(
+            f"Prediction failed: {exc}"
+        )
+
 
 elif not model_ready:
 
     st.error(model_error)
 
+
 else:
 
-    html("""
-<div class="panel" style="padding:1.2rem;">
-    <div class="panel-title">READY</div>
+    html(
+        """
+<div class="panel"
+     style="padding:1.2rem;">
+
+    <div class="panel-title">
+        READY
+    </div>
+
     <div style="
         color:#8EA0B8;
         font-size:0.75rem;
         margin-top:0.35rem;
     ">
-        Enter a customer profile from the sidebar and click
-        Predict Churn.
+        Enter a customer profile from the sidebar
+        and click Predict Churn.
     </div>
+
 </div>
-""")
+"""
+    )
 
 
 # =========================================================
 # FOOTER
 # =========================================================
 
-html("""
+html(
+    """
 <div style="
     color:#53647A;
     font-size:0.57rem;
     margin-top:0.55rem;
     text-align:right;
 ">
-    Logistic Regression Pipeline · StandardScaler + OneHotEncoder ·
+    Logistic Regression Pipeline ·
+    StandardScaler + OneHotEncoder ·
     Telco Customer Churn
 </div>
-""")
+"""
+)
